@@ -79,7 +79,7 @@ public class AllCustomerReceiveAdapter extends RecyclerView.Adapter<AllCustomerR
                 templatePDF.openDocument(true);
                 templatePDF.addMetaData(Constant.ORDER_RECEIPT, Constant.ORDER_RECEIPT, "Smart POS");
                 templatePDF.addImageLogo(bitmap_shop);
-                templatePDF.addTitle(shopName, shopAddress+ "\n Email: " + shopEmail + "\nContact: " + shopContact + "\nVat No:" + shop_vat_no, "Date: "+model.getPayDate()+"\nCreated By: "+model.getCreated_by());
+                templatePDF.addTitle(shopName, shopAddress+ "\n Email: " + shopEmail + "\nContact: " + shopContact + "\nVat No:" + shop_vat_no, "Date: "+model.getPayDate());
                 templatePDF.addParagraph(shortText);
 
                 //  templatePDF.addImage(bm);

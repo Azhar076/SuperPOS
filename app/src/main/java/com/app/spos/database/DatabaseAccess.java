@@ -188,7 +188,7 @@ public class DatabaseAccess {
     //empty cart
     public void emptyCart() {
 
-        database.delete(Constant.productCart, null, null);
+       database.delete(Constant.productCart, null, null);
         database.close();
     }
 

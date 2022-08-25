@@ -37,6 +37,7 @@ public class ViewPDFActivity extends BaseActivity {
     private File file;
     private Context primaryBaseActivity;//THIS WILL KEEP ORIGINAL INSTANCE
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -54,6 +55,7 @@ public class ViewPDFActivity extends BaseActivity {
         Log.d("location", bundle.toString());
 
         if (bundle != null) {
+
             file = new File(bundle.getString("path", ""));
 
 

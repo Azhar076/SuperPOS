@@ -73,7 +73,7 @@ public interface ApiInterface {
     //get Invoice Id data
     @GET("get_invoice_number.php")
     Call<Integer> getInvoiceId(
-            @Query(Constant.SP_SHOP_ID) String shopId
+            @Query(Constant.SP_SHOP_ID) int shopId
 
     );
 

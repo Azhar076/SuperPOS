@@ -142,7 +142,7 @@ public class AllCustomers extends BaseActivity {
         loading.show();
         ApiInterface apiInterface = ApiClient.getApiClient().create(ApiInterface.class);
 
-        Call<List<getAllCustomersReceiveModel>> call = apiInterface.getAllCustomers(shopID,"2");
+        Call<List<getAllCustomersReceiveModel>> call = apiInterface.getAllCustomers(shopID,staffID);
         call.enqueue(new Callback<List<getAllCustomersReceiveModel>>() {
             @Override
             public void onResponse(@NonNull Call<List<getAllCustomersReceiveModel>> call, @NonNull Response<List<getAllCustomersReceiveModel>> response) {

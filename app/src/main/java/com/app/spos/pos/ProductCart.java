@@ -5,6 +5,8 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -21,20 +23,32 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.app.spos.Constant;
+import com.app.spos.QRCode.DateUtil;
 import com.app.spos.R;
 import com.app.spos.adapter.CartAdapter;
+import com.app.spos.adapter.OrderAdapter;
 import com.app.spos.database.DatabaseAccess;
 import com.app.spos.model.Customer;
+import com.app.spos.model.OrderList;
 import com.app.spos.networking.ApiClient;
 import com.app.spos.networking.ApiInterface;
+import com.app.spos.orders.OrderDetailsActivity;
 import com.app.spos.orders.OrdersActivity;
+import com.app.spos.pdf_report.BarCodeEncoder;
+import com.app.spos.pdf_report.PDFTemplate;
 import com.app.spos.utils.BaseActivity;
 import com.app.spos.utils.Utils;
+import com.bumptech.glide.Glide;
+import com.example.zatca_qr_generation.ZatcaQRCodeGeneration;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.WriterException;
+import com.journeyapps.barcodescanner.BarcodeEncoder;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -55,7 +69,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class ProductCart extends BaseActivity {
+public class ProductCart extends BaseActivity{
 
 
     CartAdapter productCartAdapter;
@@ -71,23 +85,46 @@ public class ProductCart extends BaseActivity {
     ArrayAdapter<String> customerAdapter, orderTypeAdapter, paymentMethodAdapter;
     SharedPreferences sp;
     String servedBy,staffId,shopTax,currency,shopID,ownerId,staff_id;
+    String user_type;
     DecimalFormat f;
-    String taxType;
+
+    String taxType, discount1 ;
      double getTax;
     double netTotal = 0.0;
     double subTotal = 0.0;
     double totalCost,calculatedTotalCost_1;
     String selectedCustomerId;
     double paid = 0.0,due = 0.0;
-   int invoice_id;
+   int invoice_id ;
+
+   // for pdf
+    String logo,shopName,shop_vat_no,shopAddress,shopEmail,shopContact,orderDate,orderTime;
+    Bitmap bitmap = null;
+    Bitmap bm = null;
+    private PDFTemplate templatePDF;
+    ImageView img_logo;
+    String imageUrl ;
+
+    String longText, shortText, userName;
+    private String[] header = {"Description", "Price"};
+    String currentDate,currentTime;
+    String selectedItem_name;
+
+    List<HashMap<String, String>> cartProductList;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_product_cart);
+        img_logo = findViewById(R.id.img_logo);
+        templatePDF = new PDFTemplate(getApplicationContext());
 
         getSupportActionBar().setHomeButtonEnabled(true); //for back button
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);//for back button
         getSupportActionBar().setTitle(R.string.product_cart);
+
+
+
         f = new DecimalFormat("#0.00");
         sp = getSharedPreferences(Constant.SHARED_PREF_NAME, Context.MODE_PRIVATE);
 
@@ -100,12 +137,24 @@ public class ProductCart extends BaseActivity {
         ownerId = sp.getString(Constant.SP_OWNER_ID, "");
         taxType = sp.getString(Constant.TAX_TYPE, "");
         staff_id = sp.getString(Constant.SP_USER_ID, "");
+        user_type = sp.getString(Constant.USER_TYPE, "");
 
-
+        shopName = sp.getString(Constant.SP_SHOP_NAME, "N/A");
+        shop_vat_no = sp.getString(Constant.SP_VAT_NO, "N/A");
+        logo = sp.getString(Constant.SP_LOGO, "N/A");
+        shopEmail = sp.getString(Constant.SP_SHOP_EMAIL, "N/A");
+        shopContact = sp.getString(Constant.SP_SHOP_CONTACT, "N/A");
+        shopAddress = sp.getString(Constant.SP_SHOP_ADDRESS, "N/A");
+        userName = sp.getString(Constant.SP_STAFF_NAME, "N/A");
         getInvoiceID();
-        getCustomerDetail_ByDefault(shopID);
+        BarCodeEncoder qrCodeEncoder = new BarCodeEncoder();
+        try {
+            bm = qrCodeEncoder.encodeAsBitmap(""+invoice_id, BarcodeFormat.CODE_128, 600, 300);
+        } catch (WriterException e) {
+            Log.d("Data", e.toString());
+        }
 
-        getCustomers(shopID,ownerId);
+
 
         RecyclerView recyclerView = findViewById(R.id.cart_recyclerview);
         imgNoProduct = findViewById(R.id.image_no_product);
@@ -114,8 +163,16 @@ public class ProductCart extends BaseActivity {
         linearLayout = findViewById(R.id.linear_layout);
         txtTotalPrice = findViewById(R.id.txt_total_price);
 
-        txtNoProduct.setVisibility(View.GONE);
+         imageUrl = "https://superpos.ishtrii.com/shops_images/"+logo;
 
+
+
+        txtNoProduct.setVisibility(View.GONE);
+        Glide.with(getApplicationContext())
+                .load(imageUrl)
+                .placeholder(R.drawable.loading)
+                .error(R.drawable.image_placeholder)
+                .into(img_logo);
 
         // set a GridLayoutManager with default vertical orientation and 3 number of columns
         final LinearLayoutManager linearLayoutManager = new LinearLayoutManager(getApplicationContext());
@@ -123,13 +180,15 @@ public class ProductCart extends BaseActivity {
 
 
         recyclerView.setHasFixedSize(true);
+        getCustomerDetail_ByDefault(shopID);
 
+        getCustomers(shopID,ownerId);
 
         databaseAccess.open();
 
 
         //get data from local database
-        List<HashMap<String, String>> cartProductList;
+
         cartProductList = databaseAccess.getCartProduct();
 
         Log.d("CartSize", "" + cartProductList.size());
@@ -153,12 +212,19 @@ public class ProductCart extends BaseActivity {
 
 
         }
-
+        img_logo.setVisibility(View.INVISIBLE);
 
         btnSubmitOrder.setOnClickListener(v -> dialog());
 
     }
-
+    private Bitmap getQRCode(String base64String) {
+        try {
+            BarcodeEncoder barcodeEncoder =  new BarcodeEncoder();
+            return barcodeEncoder.encodeBitmap(base64String, BarcodeFormat.QR_CODE, 300, 300);
+        } catch (Exception e) {
+        }
+        return null;
+    }
     private void getCustomerDetail_ByDefault(String shopID) {
 
             ApiInterface apiInterface = ApiClient.getApiClient().create(ApiInterface.class);
@@ -175,7 +241,6 @@ public class ProductCart extends BaseActivity {
 
                     if (response.isSuccessful() && response.body() != null) {
                         customer_by_default = response.body();
-
 
                     }
 
@@ -219,10 +284,10 @@ public class ProductCart extends BaseActivity {
             } else {
 
                 //get current timestamp
-                String currentDate = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).format(new Date());
+                 currentDate = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).format(new Date());
                 String currentYear = new SimpleDateFormat("yyyy", Locale.ENGLISH).format(new Date());
                 //H denote 24 hours and h denote 12 hour hour format
-                String currentTime = new SimpleDateFormat("hh:mm a", Locale.ENGLISH).format(new Date()); //HH:mm:ss a
+                 currentTime = new SimpleDateFormat("hh:mm a", Locale.ENGLISH).format(new Date()); //HH:mm:ss a
 
                 //timestamp use for invoice id for unique
                 Long tsLong = System.currentTimeMillis() / 1000;
@@ -408,6 +473,7 @@ public class ProductCart extends BaseActivity {
 
         ImageButton dialogBtnCloseDialog = dialogView.findViewById(R.id.btn_close_dialog);
         Button dialogBtnViewAllOrders = dialogView.findViewById(R.id.btn_view_all_orders);
+        Button btn_view_pdf = dialogView.findViewById(R.id.btn_view_pdf);
 
         AlertDialog alertDialogSuccess = dialog.create();
 
@@ -432,10 +498,104 @@ public class ProductCart extends BaseActivity {
 
         });
 
+        btn_view_pdf.setOnClickListener(v -> {
+
+            alertDialogSuccess.dismiss();
+
+            if(customer_by_default.size()>0) {
+                selectedItem_name =    customer_by_default.get(0).getCustomerName();
+
+            }
+            shortText = "Customer Name: Mr/Mrs. " + selectedItem_name;
+            longText = "< Have a nice day. Visit again >";
+
+            BitmapDrawable drawable = (BitmapDrawable) img_logo.getDrawable();
+            Bitmap bitmap_shop = drawable.getBitmap();
+
+            ZatcaQRCodeGeneration.Builder builder = new ZatcaQRCodeGeneration.Builder();
+            builder.sellerName(shopName)
+                    .taxNumber(shop_vat_no)
+                    .invoiceDate(DateUtil.getCurrentDate())
+                    .totalAmount(""+netTotal)
+                    .taxAmount(""+getTax);
+            String base64String = builder.getBase64();
+            bitmap = getQRCode(base64String);
+
+
+            templatePDF.openDocument(false);
+            templatePDF.addMetaData(Constant.ORDER_RECEIPT, Constant.ORDER_RECEIPT, "Smart POS");
+            templatePDF.addImageLogo(bitmap_shop);
+            templatePDF.addTitle(shopName, shopAddress+ "\n Email: " + shopEmail + "\nContact: " + shopContact + "\nVat No:" + shop_vat_no+ "\nInvoice Id: " + ""+invoice_id, "Order Time:"+currentDate + " " + currentTime);
+            templatePDF.addParagraph(shortText);
+
+            templatePDF.createTable(header, getPDFReceipt());
+            //  templatePDF.addImage(bm);
+            templatePDF.addImage(bitmap);
+
+            templatePDF.addRightParagraph(longText);
+
+            templatePDF.closeDocument();
+            templatePDF.viewPDF();
+            this.finish();
+
+            databaseAccess.open();
+            databaseAccess.emptyCart();
+
+
+
+        });
+
         alertDialogSuccess.show();
 
 
     }
+
+
+    private ArrayList<String[]> getPDFReceipt() {
+        ArrayList<String[]> rows = new ArrayList<>();
+
+
+
+        String name, price, qty, weight;
+        double final_total_all_items=0;
+        double costTotal;
+
+
+        for (int i = 0; i <  cartProductList.size(); i++) {
+
+            name = cartProductList.get(i).get("product_name");
+
+            price = cartProductList.get(i).get("product_price");
+            qty = cartProductList.get(i).get("product_qty");
+            weight = cartProductList.get(i).get("product_weight");
+
+            costTotal = Integer.parseInt(qty) * Double.parseDouble(price);
+
+            rows.add(new String[]{name + "\n" + weight + "\n" + "(" + qty + "x" + currency + price + ")", ""+ costTotal});
+
+//            if(tax_type.equals("inclusive")) {
+//                final_total_all_items = final_total_all_items + costTotal - getTax;
+//            }else{
+//                final_total_all_items = final_total_all_items + costTotal;
+//            }
+
+        }
+        double number1 = subTotal;
+        subTotal = (int)(Math.round(number1 * 100))/100.0;
+        //   rows.add(new String[]{"..........................................", ".................................."});
+        rows.add(new String[]{"Sub Total: ", String.valueOf(subTotal)});
+        rows.add(new String[]{"Discount: ",   discount1});
+        rows.add(new String[]{"Total Tax: ", String.valueOf(getTax)});
+
+        //    rows.add(new String[]{"..........................................", ".................................."});
+        rows.add(new String[]{"Total Price: ", currency+String.valueOf(netTotal)});
+        rows.add(new String[]{"Paid Amount: ",String.valueOf(paid)});
+        rows.add(new String[]{"Due Amount: ", String.valueOf(due)});
+
+//        you can add more row above format
+        return rows;
+    }
+
 
 
     //dialog for taking otp code
@@ -468,6 +628,7 @@ public class ProductCart extends BaseActivity {
         final TextView dialogTxtTotalCost = dialogView.findViewById(R.id.dialog_txt_total_cost);
         final EditText dialogTxtPaid = dialogView.findViewById(R.id.etxt_dialog_paid);
         final TextView dialogTxtDue = dialogView.findViewById(R.id.dialog_txt_due);
+        final TextView dialog_txt_remaining = dialogView.findViewById(R.id.dialog_txt_remaining);
         final EditText dialogEtxtDiscount = dialogView.findViewById(R.id.etxt_dialog_discount);
 
 
@@ -568,20 +729,27 @@ public class ProductCart extends BaseActivity {
                     paid = Double.parseDouble(getPaid);
 
                     if(paid > netTotal ){
-                        dialogTxtPaid.setError(getString(R.string.paid_cant_be_greater_than_total_price));
-                        dialogEtxtDiscount.requestFocus();
-                        return;
+                        double remaining = paid - netTotal;
+                        dialog_txt_remaining.setText(shopCurrency + f.format(remaining));
+                        dialogTxtDue.setText("0.0");
+//                        dialogTxtPaid.setError(getString(R.string.paid_cant_be_greater_than_total_price));
+//                        dialogEtxtDiscount.requestFocus();
+//                        return;
+                        paid = netTotal;
+                        due = 0;
                     }else{
                         paid = Double.parseDouble(getPaid);
                         netTotal = subTotal+getTax;
                         due = netTotal - paid;
 
                         dialogTxtDue.setText(shopCurrency + f.format(due));
+                        dialog_txt_remaining.setText("0.0");
                     }
 
 
                 }else{
                     dialogTxtDue.setText("0.0");
+                    dialog_txt_remaining.setText("0.0");
                 }
 
                 }
@@ -785,9 +953,9 @@ public class ProductCart extends BaseActivity {
             dialogList.setOnItemClickListener((parent, view, position, id) -> {
 
                 alertDialog.dismiss();
-                String selectedItem = customerAdapter.getItem(position);
+                 selectedItem_name = customerAdapter.getItem(position);
                  selectedCustomerId = customerIDs.get(position);
-                dialogCustomer.setText(selectedItem);
+                dialogCustomer.setText(selectedItem_name);
 
 
             });
@@ -810,11 +978,14 @@ public class ProductCart extends BaseActivity {
                 Toasty.error(getApplicationContext(),getApplicationContext().getString(R.string.choose_customer),Toasty.LENGTH_SHORT).show();
                 return;
             }
-            String discount1 = dialogEtxtDiscount.getText().toString().trim();
+             discount1 = dialogEtxtDiscount.getText().toString().trim();
             if (discount1.isEmpty()) {
                 discount1 = "0.00";
             }
-            getTax =Double.parseDouble(new DecimalFormat("##.##").format(getTax));
+
+            double number1 = getTax;
+             getTax = (int)(Math.round(number1 * 100))/100.0;
+          //  getTax =Double.parseDouble(new DecimalFormat("##.##").format(getTax));
 
             proceedOrder(orderType1, orderPaymentMethod, customerName, getTax, discount1, netTotal,staff_id,selectedCustomerId,due,paid);
 
@@ -836,8 +1007,6 @@ public class ProductCart extends BaseActivity {
         ApiInterface apiInterface = ApiClient.getApiClient().create(ApiInterface.class);
 
         Call<List<Customer>> call;
-
-
         call = apiInterface.getCustomers("",shopId,ownerId);
 
         call.enqueue(new Callback<List<Customer>>() {
@@ -875,14 +1044,13 @@ public class ProductCart extends BaseActivity {
     }
 
     public void  getInvoiceID(){
-
-
-            ApiInterface apiInterface = ApiClient.getApiClient().create(ApiInterface.class);
+       int id= Integer.parseInt(shopID);
+        ApiInterface apiInterface = ApiClient.getApiClient().create(ApiInterface.class);
 
             Call<Integer> call;
 
 
-            call = apiInterface.getInvoiceId(shopID);
+            call = apiInterface.getInvoiceId(id);
 
             call.enqueue(new Callback<Integer>() {
                 @Override
@@ -890,7 +1058,8 @@ public class ProductCart extends BaseActivity {
 
 
                     if (response.isSuccessful() && response.body() != null) {
-                          invoice_id = response.body().intValue();
+                        Log.d("",""+response.body());
+                          invoice_id = response.body();
 
                     }
 
@@ -925,5 +1094,13 @@ public class ProductCart extends BaseActivity {
     }
 
 
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        finish();
+        Intent intent = new Intent(this,PosActivity.class);
+        startActivity(intent);
+
+    }
 }
 

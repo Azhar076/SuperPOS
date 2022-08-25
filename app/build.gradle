@@ -8,11 +8,12 @@ android {
         applicationId "com.app.spos"
         minSdkVersion 19
         targetSdkVersion 32
-        versionCode 6
-        versionName "1.6"
+        versionCode 10
+        versionName "1.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         multiDexEnabled true
         useLibrary 'org.apache.http.legacy'
+        ndk { debugSymbolLevel 'FULL' }
     }
     buildTypes {
         release {

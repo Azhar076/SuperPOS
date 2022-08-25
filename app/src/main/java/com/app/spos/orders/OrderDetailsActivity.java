@@ -62,6 +62,7 @@ public class OrderDetailsActivity extends BaseActivity {
 
     Button btnPdfReceipt,btnThermalPrinter;
     List<OrderDetails> orderDetails;
+    String Served_by;
 
     //how many headers or column you need, add here by using ,
     //headers and get clients para meter must be equal
@@ -86,7 +87,7 @@ public class OrderDetailsActivity extends BaseActivity {
     private WoosimPrnMng mPrnMng = null;
     double getOrderPriceWithTax;
     double getTax,getDiscount,getPaidAmount,getDueAmount;
-    double totalPrice;
+    double totalPrice,final_total_all_items;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -131,6 +132,7 @@ public class OrderDetailsActivity extends BaseActivity {
         paid_amount = getIntent().getExtras().getString(Constant.PAID_AMOUNT);
         due_amount = getIntent().getExtras().getString(Constant.DUE_AMOUNT);
         order_id = getIntent().getExtras().getString(Constant.ORDER_ID);
+        Served_by = getIntent().getExtras().getString("Served_by");
 
         getProductsData(order_id);
 
@@ -180,7 +182,12 @@ public class OrderDetailsActivity extends BaseActivity {
         txtTotalCost.setText(getString(R.string.total_price)+" "+currency+f.format(totalPrice));
         txt_total_paid.setText(getString(R.string.total_paid)+" "+currency+paid_amount);
         txt_total_due.setText(getString(R.string.due_amount)+" "+currency+f.format(getDueAmount));
-
+        if(tax_type.equals("inclusive")) {
+            final_total_all_items = final_total_all_items + totalPrice - getTax;
+        }else{
+            final_total_all_items = final_total_all_items + totalPrice;
+        }
+        txtTotalPriceWithTax.setText(getString(R.string.sub_total)+" "+currency+f.format(final_total_all_items));
 
 
         OrderDetailsAdapter.subTotalPrice=0;
@@ -208,9 +215,7 @@ public class OrderDetailsActivity extends BaseActivity {
 
                 BitmapDrawable drawable = (BitmapDrawable) img_shop_logo.getDrawable();
                 Bitmap bitmap_shop = drawable.getBitmap();
-
-
-
+                
                 ZatcaQRCodeGeneration.Builder builder = new ZatcaQRCodeGeneration.Builder();
                 builder.sellerName(shopName)
                 .taxNumber(shop_vat_no)
@@ -219,12 +224,10 @@ public class OrderDetailsActivity extends BaseActivity {
                 .taxAmount(""+getTax);
                 String base64String = builder.getBase64();
                  bitmap = getQRCode(base64String);
-
-
                 templatePDF.openDocument(false);
                 templatePDF.addMetaData(Constant.ORDER_RECEIPT, Constant.ORDER_RECEIPT, "Smart POS");
                 templatePDF.addImageLogo(bitmap_shop);
-                templatePDF.addTitle(shopName, shopAddress+ "\n Email: " + shopEmail + "\nContact: " + shopContact + "\nVat No:" + shop_vat_no, "Order Time:"+orderDate + " " + orderTime+"\nServed By: "+userName);
+                templatePDF.addTitle(shopName, shopAddress+ "\n Email: " + shopEmail + "\nContact: " + shopContact + "\nVat No:" + shop_vat_no + "\nInvoice Id: " + invoiceId, "Order Time:"+orderDate + " " + orderTime);
                 templatePDF.addParagraph(shortText);
 
                 templatePDF.createTable(header, getPDFReceipt());
@@ -278,7 +281,7 @@ public class OrderDetailsActivity extends BaseActivity {
         databaseAccess.open();
 
         String name, price, qty, weight;
-        double final_total_all_items=0;
+       // double final_total_all_items=0;
         double costTotal;
 
         for (int i = 0; i < orderDetails.size(); i++) {
@@ -293,14 +296,16 @@ public class OrderDetailsActivity extends BaseActivity {
 
             rows.add(new String[]{name + "\n" + weight + "\n" + "(" + qty + "x" + currency + price + ")", ""+ costTotal});
 
-            if(tax_type.equals("inclusive")) {
-                final_total_all_items = final_total_all_items + costTotal - getTax;
-            }else{
-                final_total_all_items = final_total_all_items + costTotal;
-            }
+//            if(tax_type.equals("inclusive")) {
+//                final_total_all_items = final_total_all_items + costTotal - getTax;
+//            }else{
+//                final_total_all_items = final_total_all_items + costTotal;
+//            }
 
         }
      //   rows.add(new String[]{"..........................................", ".................................."});
+        double number1 = final_total_all_items;
+        final_total_all_items = (int)(Math.round(number1 * 100))/100.0;
         rows.add(new String[]{"Sub Total: ", String.valueOf(final_total_all_items)});
         rows.add(new String[]{"Discount: ",   discount});
         rows.add(new String[]{"Total Tax: ", String.valueOf(getTax)});
@@ -347,11 +352,6 @@ public class OrderDetailsActivity extends BaseActivity {
 
 
                     } else {
-
-
-                        
-
-
 
                     }
 

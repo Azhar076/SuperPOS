@@ -91,6 +91,25 @@
                         android:text="@string/view_all_orders"
                         android:textColor="#fff"
                         android:textStyle="bold" />
+
+                </com.balysv.materialripple.MaterialRippleLayout>
+                <com.balysv.materialripple.MaterialRippleLayout
+                    style="@style/RippleStyleWhite"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+
+                    <Button
+                        android:id="@+id/btn_view_pdf"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:background="@color/colorPrimary"
+                        android:fontFamily="@font/sailec_regular"
+                        android:text="@string/generate_pdf_receipt"
+                        android:textColor="#fff"
+                        android:textStyle="bold" />
+
                 </com.balysv.materialripple.MaterialRippleLayout>
             </LinearLayout>
 

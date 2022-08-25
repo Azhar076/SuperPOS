@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.app.spos.Constant;
+import com.app.spos.HomeActivity;
 import com.app.spos.R;
 import com.app.spos.adapter.PosProductAdapter;
 import com.app.spos.adapter.ProductCategoryAdapter;
@@ -176,6 +177,8 @@ public class PosActivity extends BaseActivity implements CartCount{
 
             case android.R.id.home:
 
+                Intent intent1  = new Intent(PosActivity.this, HomeActivity.class);
+                startActivity(intent1);
                 this.finish();
                 return true;
             default:
@@ -326,6 +329,7 @@ public class PosActivity extends BaseActivity implements CartCount{
             public void onClick(View view) {
                 Intent intent = new Intent(PosActivity.this, ProductCart.class);
                 startActivity(intent);
+                finish();
             }
         });
 
@@ -334,9 +338,16 @@ public class PosActivity extends BaseActivity implements CartCount{
             public void onClick(View view) {
                 Intent intent = new Intent(PosActivity.this, ProductCart.class);
                 startActivity(intent);
+                finish();
             }
         });
     }
 
-
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        Intent intent = new Intent(PosActivity.this,HomeActivity.class);
+        startActivity(intent);
+        finish();
+    }
 }

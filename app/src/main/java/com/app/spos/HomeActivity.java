@@ -19,6 +19,7 @@ import androidx.cardview.widget.CardView;
 import com.app.spos.customerReceive.AddCustomerReceiveActivity;
 import com.app.spos.customerReceive.AllCustomers;
 import com.app.spos.customers.CustomersActivity;
+import com.app.spos.database.DatabaseAccess;
 import com.app.spos.expense.ExpenseActivity;
 import com.app.spos.login.LoginActivity;
 import com.app.spos.orders.OrdersActivity;
@@ -41,6 +42,8 @@ import com.karumi.dexter.PermissionToken;
 import com.karumi.dexter.listener.PermissionRequest;
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import es.dmoral.toasty.Toasty;
@@ -61,7 +64,7 @@ public class HomeActivity extends BaseActivity {
     TextView txtShopName, txtSubText;
 
     private AdView adView;
-
+    DatabaseAccess databaseAccess;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,7 +75,8 @@ public class HomeActivity extends BaseActivity {
         getSupportActionBar().setBackgroundDrawable(getResources().getDrawable(R.drawable.actionbar_gradient));
         getSupportActionBar().setElevation(0);
 
-
+         databaseAccess = DatabaseAccess.getInstance(HomeActivity.this);
+        databaseAccess.open();
         cardCustomers = findViewById(R.id.card_customers);
         cardSupplier = findViewById(R.id.card_suppliers);
         cardProducts = findViewById(R.id.card_products);
@@ -238,12 +242,24 @@ public class HomeActivity extends BaseActivity {
                         .setButton1Click(new View.OnClickListener() {
                             @Override
                             public void onClick(View v) {
+                                List<HashMap<String, String>> cartProductList = new ArrayList<>();
+                                databaseAccess.open();
+                                cartProductList = databaseAccess.getCartProduct();
+                                if(!cartProductList.isEmpty()) {
+                                    for (int i = 0; i < cartProductList.size(); i++) {
+                                        String id = cartProductList.get(i).get(Constant.CART_ID);
+                                        databaseAccess.open();
+                                      boolean isDelete =  databaseAccess.deleteProductFromCart(id);
+                                      Log.d("",""+isDelete);
+                                    }
+                                }
+
                                 editor.putString(Constant.SP_EMAIL, "");
                                 editor.putString(Constant.SP_PASSWORD, "");
                                 editor.putString(Constant.SP_USER_NAME, "");
                                 editor.putString(Constant.SP_USER_TYPE, "");
                                 editor.apply();
-
+//                                databaseAccess.emptyCart();
                                 Intent intent = new Intent(getApplicationContext(), LoginActivity.class);
                                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                                 startActivity(intent);

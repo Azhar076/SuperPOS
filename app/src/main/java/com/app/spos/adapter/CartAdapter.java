@@ -244,6 +244,7 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.MyViewHolder> 
                     if(taxType.equals("exclusive")){
                         priceWithTax =totalPrice+allTax;
                         totalpriceWithoutTax  = totalPrice;
+                        allTax = totalPrice*0.15;
                     }else{
 
                         priceWithTax =totalPrice;

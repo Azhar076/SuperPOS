@@ -280,13 +280,17 @@ btn_save.setOnClickListener(new View.OnClickListener() {
 
     @Override
     public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-        if(adapterView.getSelectedItem().equals(R.id.spinner_customer)){
-            if(customer_id !=null && customer_id.size()>0) {
+
+        switch(adapterView.getId()) {
+            case R.id.spinner_payment:
+                pay_type_selected = payment_type[i];
+                break;
+            case R.id.spinner_customer:
                 id_selected = customer_id.get(i);
-            }
+                break;
+
         }
 
-        pay_type_selected = payment_type[i];
 
 
     }
